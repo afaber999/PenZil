@@ -19,6 +19,7 @@ pub fn main() !void {
     try canvaz.createWindow("Penzil Demo", width, height);
 
     var penzil = try Penzil.init(allocator,width,height,width);
+    const buffer = canvaz.dataBuffer();
 
     var r : u8 = 0;
 
@@ -26,15 +27,14 @@ pub fn main() !void {
         const delta = canvaz.delta();
         r +%=  @as(u8, @intFromFloat(delta * 100));
 
-        const buffer = canvaz.dataBuffer();
 
         penzil.clear( Penzil.from_rgba(r, 0x80, 0x20, 0xFF));
 
+        // copy line by line into canvaZ buffer
         for (0..height) |y| {
-            for (0..width) |x| {
-                const col = penzil.getPixel(x,y);
-                setPixel(buffer, width, x, y, col);
-            }
+            const src = @as([*]u32, @ptrCast(penzil.pixelPtr(0, y)))[0..width];
+            const dst = @as([*]u32, @ptrCast(&buffer[y * width]))[0..width];
+            @memcpy(dst, src);
         }
 
         Canvaz.sleep(16);
