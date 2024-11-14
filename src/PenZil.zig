@@ -1,8 +1,30 @@
 const std = @import("std");
 const log = @import("common.zig").log;
+pub const read_png = @import("common.zig").read_png;
 
-pub inline fn from_rgba(r: u8, g: u8, b: u8, a: u8) u32 {
+pub const PixelType = u32;
+
+pub const Self = @This();
+
+
+pub inline fn from_rgba(r: u8, g: u8, b: u8, a: u8) PixelType {
     return (@as(u32, b) << 8 * 0) | (@as(u32, g) << 8 * 1) | (@as(u32, r) << 8 * 2) | (@as(u32, a) << 8 * 3);
+}
+
+pub inline fn red(color: PixelType) u8 {
+    return @truncate(color >> 8 * 0);
+}
+
+pub inline fn green(color: PixelType) u8 {
+    return @truncate(color >> 8 * 1);
+}
+
+pub inline fn blue(color: PixelType) u8 {
+    return @truncate(color >> 8 * 2);
+}
+
+pub inline fn alpha(color: PixelType) u8 {
+    return @truncate(color >> 8 * 3);
 }
 
 pub const Ubounds = struct {
@@ -21,8 +43,6 @@ pub const Ubounds = struct {
     }
 };
 
-pub const Self = @This();
-pub const PixelType = u32;
 
 width: usize,
 height: usize,
@@ -65,7 +85,6 @@ pub inline fn pixelPtr(self: Self, x: usize, y: usize) *PixelType {
     return &self.pixels[self.pixelIndex(x, y)];
 }
 
-
 pub fn normalized_bounds(self: Self, x: i32, y: i32, w: i32, h: i32) Ubounds {
     var xs = x;
     var ys = y;
@@ -84,17 +103,62 @@ pub fn normalized_bounds(self: Self, x: i32, y: i32, w: i32, h: i32) Ubounds {
     return Ubounds.init(@intCast(xs), @intCast(ys), @intCast(xe), @intCast(ye));
 }
 
-pub fn view(self: Self, x: i32, y: i32, w: i32, h: i32) !Self {
+pub fn view(self: Self, x: i32, y: i32, w: i32, h: i32) Self {
     const bounds = self.normalized_bounds(x, y, w, h);
-    const sub_index = self.pixel_index(bounds.xs, bounds.ys);
+    const sub_index = self.pixelIndex(bounds.xs, bounds.ys);
 
     return .{
-        .width = self.xe - self.xs,
-        .height = self.ye - self.ys,
+        .width = bounds.xe - bounds.xs,
+        .height = bounds.ye - bounds.ys,
         .stride = self.stride,
         .pixels = self.pixels[sub_index..],
         .allocator = null,
     };
+}
+
+
+fn pixelMixA(a:PixelType, b:PixelType) PixelType {
+    _ = b;
+    return a;
+}
+
+fn pixelMixB(a:PixelType, b:PixelType) PixelType {
+    _ = a;
+    return b;
+}
+
+fn pixelMixBlend(a:PixelType, b:PixelType) PixelType {
+    const r1 = @as(u32, @intCast(red(a)));
+    const g1 = @as(u32, @intCast(green(a)));
+    const b1 = @as(u32, @intCast(blue(a)));
+    const a1 = alpha(a);
+
+    const r2 = @as(u32, @intCast(red(b)));
+    const g2 = @as(u32, @intCast(green(b)));
+    const b2 = @as(u32, @intCast(blue(b)));
+    const a2 = @as(u32, @intCast(alpha(b)));
+
+    const r3: u32 = @min((r1 * (255 - a2) + r2 * a2) / 255, 255);
+    const g3: u32 = @min((g1 * (255 - a2) + g2 * a2) / 255, 255);
+    const b3: u32 = @min((b1 * (255 - a2) + b2 * a2) / 255, 255);
+
+    return from_rgba(@truncate(r3), @truncate(g3), @truncate(b3), a1);
+}
+
+inline fn copy_nb_func(dst: *Self, src: *const Self, blend : fn(PixelType, PixelType) PixelType) void {
+    for (0..dst.height) |y| {
+        for (0..dst.width) |x| {
+            const nx = @divFloor(x * src.width, dst.width);
+            const ny = @divFloor(y * src.height, dst.height);
+            const a = dst.getPixel(x, y);
+            const b = src.getPixel(nx, ny);
+            dst.setPixel( x,y,blend(a,b));
+        }
+    }
+}
+
+pub fn copy_nb(dst: *Self, src: *const Self) void {
+    copy_nb_func(dst, src, pixelMixBlend);
 }
 
 pub fn fill_rect(self: Self, x1: i32, y1: i32, w: i32, h: i32, color: PixelType) void {

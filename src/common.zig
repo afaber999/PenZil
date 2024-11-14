@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const PenZil = @import("Penzil.zig");
+const PenZil = @import("PenZil.zig");
 const png = @import("png.zig");
 
 //if ( comptime builtin.cpu.arch == .wasm32) {
@@ -53,7 +53,7 @@ pub fn read_png(allocator: std.mem.Allocator, reader: anytype) !PenZil {
             const a = @as(u8, @intCast(pixel[3] >> 8));
 
             const pt = PenZil.from_rgba(r, g, b, a);
-            penzil.set_pixel(x, y, pt);
+            penzil.setPixel(x, y, pt);
             idx += 1;
         }
     }
