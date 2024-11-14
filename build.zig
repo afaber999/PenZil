@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) void {
         .{ .root_source_file = penzil_source_file  });
 
     const ExampleDir = "examples/";
-    const Examples = [_][]const u8{ "gradient", "starfield", "squish" };
+    const Examples = [_][]const u8{ "gradient", "starfield", "squish", "circles" };
 
     inline for (Examples) |exampleName| {
         const nm = ExampleDir ++ exampleName ++ "/main.zig";

@@ -69,6 +69,39 @@ pub fn deinit(self: Self) void {
     }
 }
 
+pub inline fn inXbounds(self: Self, comptime T: type, x: T) bool {
+    switch (T) {
+        u32 => {
+            const w: T = @intCast(self.width);
+            return x < w;
+        },
+        i32 => {
+            const w: T = @intCast(self.width);
+            return 0 <= x and x < w;
+        },
+        else => @compileError(std.fmt.format("unsupported type: {}", .{T})),
+    }
+}
+
+pub inline fn inYbounds(self: Self, comptime T: type, y: T) bool {
+    switch (T) {
+        u32 => {
+            const h: T = @intCast(self.height);
+            return y < h;
+        },
+        i32 => {
+            const h: T = @intCast(self.height);
+            return 0 <= y and y < h;
+        },
+        else => @compileError(std.fmt.format("unsupported type: {}", .{T})),
+    }
+}
+
+pub inline fn inBounds(self: Self, comptime T: type, x: T, y: T) bool {
+    return (self.inXbounds(T, x) and self.inYbounds(T, y));
+}
+
+
 pub inline fn pixelIndex(self: Self, x: usize, y: usize) usize {
     return y * self.stride + x;
 }
@@ -79,6 +112,13 @@ pub inline fn getPixel(self: Self, x: usize, y: usize) PixelType {
 
 pub inline fn setPixel(self: Self, x: usize, y: usize, color: PixelType) void {
     self.pixels[self.pixelIndex(x, y)] = color;
+}
+
+pub inline fn setPixeInBounds(self: Self, x: i32, y: i32, color: PixelType) void {
+    //std.debug.print("setPixeInBounds x {} y {} ", .{x,y});
+    if (self.inBounds(i32, x, y)) {
+        self.setPixel( @intCast(x),@intCast(y),color);
+    }
 }
 
 pub inline fn pixelPtr(self: Self, x: usize, y: usize) *PixelType {
@@ -178,6 +218,72 @@ pub fn clear(self: *Self, color: PixelType) void {
     const h: i32 = @intCast(self.height);
     self.fill_rect(0, 0, w, h, color);
 }
+
+
+pub fn circle(self: *Self, cx: i32, cy: i32, r: i32, color: PixelType) void {
+
+    var x: i32 = 0;
+    var y: i32 = -r;
+    var p: i32 = -r;
+
+    while (x < -y ) {
+        if (p > 0) {
+            p += 2 * (x + y) + 1;
+            y += 1;
+        } else {
+            p += 2 * x  + 1;
+        }
+
+        self.setPixeInBounds( cx + x, cy + y, color);
+        self.setPixeInBounds( cx - x, cy + y, color);
+        self.setPixeInBounds( cx + x, cy - y, color);
+        self.setPixeInBounds( cx - x, cy - y, color);
+        self.setPixeInBounds( cx + y, cy + x, color);
+        self.setPixeInBounds( cx + y, cy - x, color);
+        self.setPixeInBounds( cx - y, cy + x, color);
+        self.setPixeInBounds( cx - y, cy - x, color);
+        x += 1;
+    }
+}
+
+
+
+pub inline fn draw_hline(self: *Self, xs: i32, xe : i32, y : i32, color: PixelType) void  {
+    
+    if ( !self.inYbounds(i32, y)) return;
+
+    // todo don't draw if both x1 or  x2 or y are not in bounds
+    const x1 : usize = @min(  @as(usize, @intCast( @max( 0, @min(xs,xe) ))), self.width);
+    const x2 : usize = @min(  @as(usize, @intCast( @max( 0, @max(xs,xe) ))), self.width);
+    const y1 : usize = @as(usize, @intCast(y));
+    for (x1..x2) |x| {
+        self.setPixel( x, y1, color);
+    }
+}
+
+pub fn circle_fill(self: *Self, cx: i32, cy: i32, r: i32, color: PixelType) void {
+
+    var x: i32 = 0;
+    var y: i32 = -r;
+    var p: i32 = -r;
+
+    while (x < -y ) {
+        if (p > 0) {
+            p += 2 * (x + y) + 1;
+            y += 1;
+        } else {
+            p += 2 * x  + 1;
+        }
+
+        self.draw_hline(cx - x, cx + x, cy + y, color);
+        self.draw_hline(cx - x, cx + x, cy - y, color);
+
+        self.draw_hline(cx - y, cx + y, cy + x, color);
+        self.draw_hline(cx - y, cx + y, cy - x, color);
+        x += 1;
+    }
+}
+
 
 // pub fn copy_nb(dst: *Self, src: Self) void {
 //     for (0..dst.height) |y| {
