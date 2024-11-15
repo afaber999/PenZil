@@ -8,24 +8,27 @@ pub const Self = @This();
 
 
 pub inline fn from_rgba(r: u8, g: u8, b: u8, a: u8) PixelType {
-    return (@as(u32, b) << 8 * 0) | (@as(u32, g) << 8 * 1) | (@as(u32, r) << 8 * 2) | (@as(u32, a) << 8 * 3);
-}
-
-pub inline fn red(color: PixelType) u8 {
-    return @truncate(color >> 8 * 0);
-}
-
-pub inline fn green(color: PixelType) u8 {
-    return @truncate(color >> 8 * 1);
+    // pixel buffer is: argb
+    return (@as(u32, a) << 8 * 3) | (@as(u32, r) << 8 * 2) | (@as(u32, g) << 8 * 1) | (@as(u32, b) << 8 * 0);
 }
 
 pub inline fn blue(color: PixelType) u8 {
-    return @truncate(color >> 8 * 2);
+    return @truncate(color >> (8 * 0));
+}
+
+pub inline fn green(color: PixelType) u8 {
+    return @truncate(color >> (8 * 1));
+}
+
+pub inline fn red(color: PixelType) u8 {
+    return @truncate(color >> (8 * 2));
 }
 
 pub inline fn alpha(color: PixelType) u8 {
-    return @truncate(color >> 8 * 3);
+    return @truncate(color >> (8 * 3));
 }
+
+
 
 pub const Ubounds = struct {
     xs: usize,
@@ -192,7 +195,8 @@ inline fn copy_nb_func(dst: *Self, src: *const Self, blend : fn(PixelType, Pixel
             const ny = @divFloor(y * src.height, dst.height);
             const a = dst.getPixel(x, y);
             const b = src.getPixel(nx, ny);
-            dst.setPixel( x,y,blend(a,b));
+            const c = blend(a,b);
+            dst.setPixel( x,y,c);
         }
     }
 }

@@ -52,7 +52,13 @@ pub fn read_png(allocator: std.mem.Allocator, reader: anytype) !PenZil {
             const b = @as(u8, @intCast(pixel[2] >> 8));
             const a = @as(u8, @intCast(pixel[3] >> 8));
 
+            //a = @truncate(x);
+            // a = 0x00;
+            // b = 0x00;
+            // g = 0xFF;
+            // r = 0x00;
             const pt = PenZil.from_rgba(r, g, b, a);
+            //pt = 0xFFFFFF00;
             penzil.setPixel(x, y, pt);
             idx += 1;
         }

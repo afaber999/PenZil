@@ -21,7 +21,6 @@ const CircleDemo = struct {
         penzil.circle(cx, cy, r1, PenZil.from_rgba(0x80, 0x80, 0x30, 0xFF));
         penzil.circle_fill(cx, cy, r2, PenZil.from_rgba(0x40, 0x40, 0x30, 0xFF));
     }
-
 };
 
 
