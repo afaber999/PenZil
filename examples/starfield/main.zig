@@ -1,5 +1,5 @@
 const std = @import("std");
-const Canvaz = @import("CanvaZ").CanvaZ;
+const Canvaz = @import("CanvaZ");
 const PenZil = @import("PenZil");
 
 const Star = struct {

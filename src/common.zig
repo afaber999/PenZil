@@ -39,10 +39,6 @@ pub fn read_png(allocator: std.mem.Allocator, reader: anytype) !PenZil {
     defer img.deinit(allocator);
 
     const penzil = try PenZil.init(allocator, img.width, img.height, img.width);
-    // const pixels = try allocator.alloc(Canvas.PixelType, img.width * img.height);
-    // errdefer allocator.free(pixels);
-    // var canvas = Canvas.init(pixels, img.width, img.height, img.width);
-
     var idx: usize = 0;
     for (0..penzil.height) |y| {
         for (0..penzil.width) |x| {
@@ -52,13 +48,7 @@ pub fn read_png(allocator: std.mem.Allocator, reader: anytype) !PenZil {
             const b = @as(u8, @intCast(pixel[2] >> 8));
             const a = @as(u8, @intCast(pixel[3] >> 8));
 
-            //a = @truncate(x);
-            // a = 0x00;
-            // b = 0x00;
-            // g = 0xFF;
-            // r = 0x00;
             const pt = PenZil.from_rgba(r, g, b, a);
-            //pt = 0xFFFFFF00;
             penzil.setPixel(x, y, pt);
             idx += 1;
         }
