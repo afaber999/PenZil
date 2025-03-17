@@ -15,7 +15,7 @@
       "**/.vscode": true,
       "**/.code-workspace": true,
       // ZIG FOLDERS --------
-      "**/zig-cache": true
+      "**/.zig-cache": true
     },
     "search.exclude": {
       "**/node_modules": true,
@@ -26,7 +26,7 @@
     },
     "files.watcherExclude": {
       // ZIG FOLDERS --------
-      "**/zig-cache": true
+      "**/.zig-cache": true
     },
 
     // DarknessFX settings

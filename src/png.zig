@@ -26,7 +26,7 @@ pub const Ihdr = struct {
     pub const byte_size = 13;
     comptime {
         var total: usize = 0;
-        for (@typeInfo(Ihdr).Struct.fields) |field| {
+        for (@typeInfo(Ihdr).@"struct".fields) |field| {
             total += @sizeOf(field.type);
         }
         std.debug.assert(total == byte_size);
@@ -81,7 +81,7 @@ pub const ChunkType = blk: {
         };
     }
 
-    break :blk @Type(.{ .Enum = .{
+    break :blk @Type(.{ .@"enum" = .{
         .tag_type = u32,
         .fields = &fields,
         .decls = &.{},

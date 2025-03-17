@@ -1,7 +1,7 @@
 .{
-    .name = "PenZil",
+    .name = .PenZil,
     .version = "0.0.1",
-    .minimum_zig_version = "0.13.0",
+    .minimum_zig_version = "0.14.0",
 
     // This field is optional.
     // Each dependency must either provide a `url` and `hash`, or a `path`.
@@ -9,12 +9,13 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
+        //for local development
         // .CanvaZ = .{
         //     .path = "../CanvaZ",
         // },
         .CanvaZ = .{
-            .url = "https://github.com/afaber999/CanvaZ/archive/refs/tags/0.0.1.tar.gz",
-            .hash = "12203ba08825c0c6fd7f19eb1f4170b96b5f30785089b4bf3f74693ee81ad64aa01a",
+            .url = "https://github.com/afaber999/CanvaZ/archive/refs/tags/0.0.2.tar.gz",
+            .hash = "CanvaZ-0.0.2-5DrNMc5DAACdZAwiIvYOlMLO-_vD3QZ7TynuFY9XC9SQ"
         },
     },
     .paths = .{
@@ -25,4 +26,5 @@
         //"LICENSE",
         //"README.md",
     },
+    .fingerprint = 0xa67787a20339c91a,
 }

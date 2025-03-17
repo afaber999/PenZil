@@ -53,7 +53,7 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var canvaz = Canvaz.init(allocator);
+    var canvaz = try Canvaz.init(allocator);
     const width = 800;
     const height = 600;
 
