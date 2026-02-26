@@ -19,11 +19,15 @@ pub fn build(b: *std.Build) void {
     inline for (Examples) |exampleName| {
         const nm = ExampleDir ++ exampleName ++ "/main.zig";
 
-        const example = b.addExecutable(.{
-            .name = exampleName,
+        const example_module = b.createModule(.{
             .root_source_file = b.path(nm),
             .target = target,
             .optimize = optimize,
+        });
+
+        const example = b.addExecutable(.{
+            .name = exampleName,
+            .root_module = example_module,
         });
 
         // add PenZil as a dependency
