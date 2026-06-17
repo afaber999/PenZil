@@ -2,6 +2,35 @@ const std = @import("std");
 const Canvaz = @import("CanvaZ");
 const PenZil = @import("PenZil");
 
+const SliceReader = struct {
+    bytes: []const u8,
+    pos: usize = 0,
+
+    pub fn readNoEof(self: *SliceReader, out: []u8) !void {
+        if (self.pos + out.len > self.bytes.len) return error.EndOfStream;
+        @memcpy(out, self.bytes[self.pos .. self.pos + out.len]);
+        self.pos += out.len;
+    }
+
+    pub fn readBytesNoEof(self: *SliceReader, comptime n: usize) ![n]u8 {
+        var out: [n]u8 = undefined;
+        try self.readNoEof(&out);
+        return out;
+    }
+
+    pub fn readInt(self: *SliceReader, comptime T: type, endian: std.builtin.Endian) !T {
+        const bytes = try self.readBytesNoEof(@sizeOf(T));
+        return std.mem.readInt(T, &bytes, endian);
+    }
+
+    pub fn isBytes(self: *SliceReader, expected: []const u8) !bool {
+        if (self.pos + expected.len > self.bytes.len) return false;
+        const found = self.bytes[self.pos .. self.pos + expected.len];
+        self.pos += expected.len;
+        return std.mem.eql(u8, found, expected);
+    }
+};
+
 const SquishDemo = struct {
     image : PenZil,
     height : i32 = 200,
@@ -10,8 +39,8 @@ const SquishDemo = struct {
 
     pub fn init(allocator : std.mem.Allocator) !SquishDemo {
         const emedded_png = @embedFile("./pencil.png");
-        var buffer_stream = std.io.fixedBufferStream(emedded_png);
-        const image = try PenZil.read_png(allocator, buffer_stream.reader());
+        var reader = SliceReader{ .bytes = emedded_png };
+        const image = try PenZil.read_png(allocator, &reader);
         return SquishDemo{ .image = image };
     }
 
@@ -43,7 +72,7 @@ const SquishDemo = struct {
 
 pub fn main() !void {
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     const allocator = gpa.allocator();
 
     var canvaz = try Canvaz.init(allocator);

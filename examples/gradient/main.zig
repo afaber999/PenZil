@@ -29,7 +29,7 @@ pub fn update(penzil : *PenZil, ofs : u8) void {
 
 pub fn main() !void {
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     const allocator = gpa.allocator();
 
     var canvaz = try Canvaz.init(allocator);

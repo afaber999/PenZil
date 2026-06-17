@@ -14,6 +14,14 @@ pub fn debug(comptime level: @TypeOf(.x), comptime format: []const u8, args: any
     // }
 }
 
+fn intToEnumChecked(comptime Enum: type, raw: anytype) error{InvalidEnumTag}!Enum {
+    const value: @typeInfo(Enum).@"enum".tag_type = @intCast(raw);
+    inline for (@typeInfo(Enum).@"enum".fields) |field| {
+        if (field.value == value) return @enumFromInt(value);
+    }
+    return error.InvalidEnumTag;
+}
+
 pub const Ihdr = struct {
     width: u32,
     height: u32,
@@ -61,32 +69,13 @@ pub const Chunk = struct {
     ctype: ChunkType,
     data: []u8,
 };
-pub const ChunkType = blk: {
-    const types = [_]*const [4]u8{
-        "IHDR",
-        "PLTE",
-        "IDAT",
-        "IEND",
-        "tRNS",
-    };
-
-    var fields: [types.len]std.builtin.Type.EnumField = undefined;
-    for (types, 0..) |name, i| {
-        var field_name_buf: [4:0]u8 = undefined;
-        const field_name = std.ascii.lowerString(&field_name_buf, name);
-        field_name_buf[field_name.len] = 0;
-        fields[i] = .{
-            .name = field_name[0.. :0],
-            .value = @as(u32, @bitCast(name.*)),
-        };
-    }
-
-    break :blk @Type(.{ .@"enum" = .{
-        .tag_type = u32,
-        .fields = &fields,
-        .decls = &.{},
-        .is_exhaustive = false,
-    } });
+pub const ChunkType = enum(u32) {
+    ihdr = @as(u32, @bitCast([4]u8{ 'I', 'H', 'D', 'R' })),
+    plte = @as(u32, @bitCast([4]u8{ 'P', 'L', 'T', 'E' })),
+    idat = @as(u32, @bitCast([4]u8{ 'I', 'D', 'A', 'T' })),
+    iend = @as(u32, @bitCast([4]u8{ 'I', 'E', 'N', 'D' })),
+    trns = @as(u32, @bitCast([4]u8{ 't', 'R', 'N', 'S' })),
+    _,
 };
 pub fn chunkType(name: [4]u8) ChunkType {
     const x: u32 = @bitCast(name);
@@ -247,19 +236,26 @@ pub fn Decoder(comptime Reader: type) type {
             if (chunk.ctype != .ihdr) {
                 return error.InvalidPng;
             }
-            var stream = std.io.fixedBufferStream(chunk.data);
-            const r = stream.reader();
+            if (chunk.data.len != Ihdr.byte_size) {
+                return error.InvalidPng;
+            }
+            var offset: usize = 0;
+
+            const width = std.mem.readInt(u32, chunk.data[offset..][0..4], .big);
+            offset += 4;
+            const height = std.mem.readInt(u32, chunk.data[offset..][0..4], .big);
+            offset += 4;
 
             // Read and validate width and height
-            const width = try r.readInt(u32, .big);
-            const height = try r.readInt(u32, .big);
             if (width == 0 or height == 0) {
                 return error.InvalidPng;
             }
 
             // Read and validate color type and bit depth
-            const bit_depth = try r.readInt(u8, .big);
-            const color_type = try std.meta.intToEnum(ColorType, try r.readInt(u8, .big));
+            const bit_depth = chunk.data[offset];
+            offset += 1;
+            const color_type = try intToEnumChecked(ColorType, chunk.data[offset]);
+            offset += 1;
             const allowed_bit_depths: []const u5 = switch (color_type) {
                 .grayscale => &.{ 1, 2, 4, 8, 16 },
                 .truecolor, .grayscale_alpha, .truecolor_alpha => &.{ 8, 16 },
@@ -272,11 +268,13 @@ pub fn Decoder(comptime Reader: type) type {
             }
 
             // Read and validate compression method and filter method
-            const compression_method = try std.meta.intToEnum(CompressionMethod, try r.readInt(u8, .big));
-            const filter_method = try std.meta.intToEnum(FilterMethod, try r.readInt(u8, .big));
+            const compression_method = try intToEnumChecked(CompressionMethod, chunk.data[offset]);
+            offset += 1;
+            const filter_method = try intToEnumChecked(FilterMethod, chunk.data[offset]);
+            offset += 1;
 
             // Read and validate interlace method
-            const interlace_method = try std.meta.intToEnum(InterlaceMethod, try r.readInt(u8, .big));
+            const interlace_method = try intToEnumChecked(InterlaceMethod, chunk.data[offset]);
 
             return Ihdr{
                 .width = width,
@@ -323,7 +321,7 @@ fn readPixels(
     var compressed_reader: std.Io.Reader = .fixed(data);
     var decompress_buffer: [std.compress.flate.max_window_len]u8 = undefined;
     var data_stream: std.compress.flate.Decompress = .init(&compressed_reader, .zlib, &decompress_buffer);
-    var datar = data_stream.reader.adaptToOldInterface();
+    const datar = &data_stream.reader;
 
     // TODO: interlacing
     var pixels = try allocator.alloc([4]u16, ihdr.width * ihdr.height);
@@ -356,10 +354,10 @@ fn readPixels(
 
     var y: u32 = 0;
     while (y < ihdr.height) : (y += 1) {
-        const filter = std.meta.intToEnum(FilterType, try datar.readByte()) catch {
+        const filter = intToEnumChecked(FilterType, try datar.takeByte()) catch {
             return error.InvalidPng;
         };
-        try datar.readNoEof(line);
+        try datar.readSliceAll(line);
         filterScanline(filter, ihdr.bit_depth, components(ihdr.color_type), prev_line, line);
 
         var bit_index: usize = 0;
@@ -415,12 +413,12 @@ fn readPixels(
         std.mem.swap([]u8, &line, &prev_line);
     }
 
-    var buf: [1]u8 = undefined;
-    if (0 != try datar.readAll(&buf)) {
-        return error.InvalidPng; // Excess IDAT data
-    }
+    _ = datar.takeByte() catch |err| switch (err) {
+        error.EndOfStream => return pixels,
+        else => |e| return e,
+    };
+    return error.InvalidPng; // Excess IDAT data
 
-    return pixels;
 }
 
 fn readBitsNoEofBE(comptime T: type, data: []const u8, bit_index: *usize, nbits: u5) !T {

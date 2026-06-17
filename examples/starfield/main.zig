@@ -12,7 +12,8 @@ const StarField = struct {
     stars : [] Star = undefined,
     const speed : f32 = 0.2;
     const spread : f32 = 0.8;
-    var rand = std.crypto.random;
+    var prng = std.Random.DefaultPrng.init(0x8f3d_2a71_5c49_b6e0);
+    var rand = prng.random();
 
     pub fn init(allocator: std.mem.Allocator, number : usize) !StarField {
         const stars= try allocator.alloc(Star, number);
@@ -50,7 +51,7 @@ const StarField = struct {
 
 pub fn main() !void {
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     const allocator = gpa.allocator();
 
     var canvaz = try Canvaz.init(allocator);
